@@ -29,7 +29,7 @@ function trim_zero(obj) {
 function dpid_to_int(dpid) {
     return Number("0x" + dpid);
 }
-
+//整个页面节点 类似vue根元素
 var elem = {
     //设置d3force  相关文档：https://www.d3js.org.cn/document/d3-force/#d3-force
     force: d3.layout.force()
@@ -82,6 +82,7 @@ function _dragstart(d) {
 elem.node = elem.svg.selectAll(".node");
 elem.link = elem.svg.selectAll(".link");
 elem.port = elem.svg.selectAll(".port");
+//更新elem中各节点、连线
 elem.update = function() {
     this.force
         .nodes(topo.nodes)
@@ -122,18 +123,21 @@ elem.update = function() {
         .attr("dy", 3)
         .text(function(d) { return trim_zero(d.port_no); });
 };
-
+//判断连线是否有效
 function is_valid_link(link) {
     return (link.src.dpid < link.dst.dpid)
 }
-
+//定义拓扑节点、方法
+// todo : 添加主机节点,主机拓扑连线逻辑和switch不同，方法逻辑需改写
 var topo = {
     nodes: [],
     links: [],
     node_index: {}, // dpid -> index of nodes array
     initialize: function(data) {
+
         this.add_nodes(data.switches);
         this.add_links(data.links);
+        //this.add_nodes(data.hosts)
     },
     add_nodes: function(nodes) {
         for (var i = 0; i < nodes.length; i++) {
@@ -244,6 +248,8 @@ var topo = {
 }
 
 var rpc = {
+    //todo ：增加主机相关操作
+    //enter：添加新路由节点
     event_switch_enter: function(params) {
         var switches = [];
         for (var i = 0; i < params.length; i++) {
@@ -253,6 +259,7 @@ var rpc = {
         elem.update();
         return "";
     },
+    //删除路由节点
     event_switch_leave: function(params) {
         var switches = [];
         for (var i = 0; i < params.length; i++) {
@@ -262,11 +269,13 @@ var rpc = {
         elem.update();
         return "";
     },
+    //拓扑连线
     event_link_add: function(links) {
         topo.add_links(links);
         elem.update();
         return "";
     },
+    //拓扑线删除
     event_link_delete: function(links) {
         topo.delete_links(links);
         elem.update();
@@ -274,14 +283,25 @@ var rpc = {
     },
 }
 
-//拓扑初始化
+//拓扑初始化 
+// TODO 添加主机/新节点在这里初始化
+// 主机host 和 路由switch 一样是 node
+// 拓扑关系 是 link
 function initialize_topology() {
+    //d3 目前版本api文档中已找不到json() 
     d3.json("/v1.0/topology/switches", function(error, switches) {
         d3.json("/v1.0/topology/links", function(error, links) {
             topo.initialize({ switches: switches, links: links });
             elem.update();
         });
     });
+    //新增主机
+    d3.json("", (err, hosts) => {
+        d3.json("", (err, links) => {
+            topo.initialize()
+            elem.update()
+        })
+    })
 }
 
 function main() {
